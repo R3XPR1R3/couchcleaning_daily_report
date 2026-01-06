@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Daily Cleaning Report — No Backend</title>
+  <style>
+    :root { color-scheme: dark light; }
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      margin: 16px;
+      line-height: 1.25;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(120,120,255,.10), transparent 60%),
+        radial-gradient(1200px 600px at 90% 20%, rgba(0,200,150,.10), transparent 60%),
+        radial-gradient(1200px 600px at 30% 90%, rgba(255,180,0,.10), transparent 60%);
+    }
+    h1{ margin:0 0 10px; font-size:18px; letter-spacing:.2px; }
+    .topbar{
+      display:flex; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-bottom: 12px;
+    }
+    .pill{
+      display:inline-flex; align-items:center; gap:10px;
+      padding: 8px 12px;
+      border: 1px solid rgba(127,127,127,.35);
+      border-radius: 999px;
+      background: rgba(127,127,127,.07);
+      backdrop-filter: blur(6px);
+      font-size: 13px;
+    }
+    .grid{ display:grid; gap:12px; }
+    .card{
+      border: 1px solid rgba(127,127,127,.35);
+      border-radius: 14px;
+      padding: 12px;
+      background: rgba(255,255,255,.03);
+      backdrop-filter: blur(10px);
+      overflow: hidden;
+      position: relative;
+    }
+    .card::before{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(135deg, rgba(255,255,255,.06), transparent 55%);
+      pointer-events:none;
+    }
+    .card > *{ position: relative; }
+    .card h2{
+      margin:0 0 10px;
+      font-size:14px;
+      opacity:.95;
+      display:flex; align-items:center; gap:10px;
+    }
+    .badge{
+      font-size:12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(127,127,127,.35);
+      background: rgba(127,127,127,.08);
+      opacity:.95;
+    }
+
+    /* Section tints */
+    .tint-jobs{ box-shadow: 0 0 0 1px rgba(120,120,255,.10) inset; }
+    .tint-log{  box-shadow: 0 0 0 1px rgba(0,200,150,.10) inset; }
+    .tint-dep{  box-shadow: 0 0 0 1px rgba(255,180,0,.10) inset; }
+    .tint-out{  box-shadow: 0 0 0 1px rgba(255,90,140,.10) inset; }
+
+    label{ display:grid; gap:6px; font-size:13px; opacity:.95; }
+    input, select, button, textarea{
+      font: inherit;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.35);
+      background: rgba(0,0,0,.05);
+    }
+    textarea{ width:100%; min-height: 260px; }
+    button{ cursor:pointer; background: rgba(127,127,127,.08); }
+    button.primary{ font-weight:700; background: rgba(120,120,255,.18); border-color: rgba(120,120,255,.35); }
+    button.danger{ background: rgba(255,90,140,.15); border-color: rgba(255,90,140,.35); }
+    .muted{ opacity:.75; font-size:12px; }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+
+    table{ width:100%; border-collapse: collapse; overflow:hidden; border-radius: 12px; }
+    th, td{ border-bottom: 1px solid rgba(127,127,127,.22); padding: 8px; vertical-align: top; }
+    th{ text-align:left; font-size:12px; opacity:.75; }
+    .right{ text-align:right; }
+    .actions{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .tiny{ font-size: 12px; padding: 7px 10px; border-radius: 10px; }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+    /* Scrollable lists (tolls/parking) */
+    .listbox{
+      max-height: 220px;
+      overflow: auto;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(127,127,127,.25);
+      background: rgba(0,0,0,.04);
+    }
+    .listrow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .listrow:last-child{ margin-bottom:0; }
+    .listrow .left{
+      display:flex; gap:8px; align-items:center;
+    }
+    .listrow input{
+      width: 150px;
+    }
+
+    @media (max-width: 860px){
+      .row, .row3{ grid-template-columns: 1fr; }
+      th:nth-child(5), td:nth-child(5){ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1 id="title">Калькулятор ежедневного отчёта</h1>
+
+    <span class="pill">
+      <span id="langLabel">Язык</span>
+      <select id="lang">
+        <option value="ru">RU</option>
+        <option value="en">EN</option>
+      </select>
+    </span>
+
+    <span class="pill">
+      <span id="dateLabel">Дата</span>
+      <input id="date" type="text" placeholder="01/04" class="mono" style="width:110px"/>
+    </span>
+
+    <span class="pill">
+      <span id="autosaveLabel">Autosave</span>
+      <strong id="autosaveState">ON</strong>
+    </span>
+  </div>
+
+  <div class="grid">
+    <!-- JOBS -->
+    <div class="card tint-jobs">
+      <h2><span id="jobsH">Работы</span> <span class="badge" id="jobsHint">вывод как в твоём примере</span></h2>
+
+      <div class="actions" style="margin-bottom:10px;">
+        <button class="primary" id="addJob">+ <span id="addJobTxt">Добавить работу</span></button>
+        <button class="danger" id="clearAll"><span id="clearTxt">Очистить всё</span></button>
+        <span class="muted" id="jobsMuted">
+          Canceled: поставь статус CANCELED и введи cancel fee (0 если без компенсации).
+        </span>
+      </div>
+
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="min-width:180px;"># / <span id="statusTxt">Статус</span></th>
+              <th style="min-width:200px;"><span id="amountTxt">Сумма</span> / <span id="payTxt">Оплата</span></th>
+              <th style="min-width:240px;"><span id="tipTxt">Чаевые</span> / <span id="tipMethodTxt">Метод</span></th>
+              <th style="min-width:200px;"><span id="extraTxt">Экстра</span></th>
+              <th class="right" style="min-width:120px;">&nbsp;</th>
+            </tr>
+          </thead>
+          <tbody id="jobsTbody"></tbody>
+        </table>
+      </div>
+
+      <div class="muted" style="margin-top:10px;" id="leadRule">
+        Lead Referral: контрактора получает 50% от общего Extra.
+      </div>
+    </div>
+
+    <!-- LOGISTICS -->
+    <div class="card tint-log">
+      <h2><span id="logH">Логистика</span> <span class="badge">miles / mpg * gas</span></h2>
+
+    <div class="row4">
+      <label>
+        <span id="milesTxt">Мили</span>
+        <input id="miles" type="number" step="0.01" value="0"/>
+      </label>
+
+      <label>
+        MPG
+        <input id="mpg" type="number" step="0.01" value="26"/>
+      </label>
+
+      <label>
+        <span id="gasTxt">Средняя цена бензина</span>
+        <input id="gasPrice" type="number" step="0.01" value="3"/>
+      </label>
+
+      <label>
+        <span id="flatTxt">Флэт фи за авто/логистику</span>
+        <input id="flat" type="number" step="0.01" value="10"/>
+      </label>
+    </div>
+
+
+      <div class="row3" style="margin-top:12px;">
+        <!-- TOLLS LIST -->
+        <div>
+          <div class="muted" style="margin-bottom:6px;" id="tollsTxt">Толлы (список)</div>
+          <div class="actions">
+            <button class="tiny" id="addToll">+ <span id="addTollTxt">Добавить толл</span></button>
+            <button class="tiny" id="clearTolls"><span id="clearTollsTxt">Очистить толлы</span></button>
+          </div>
+          <div id="tollsList" class="listbox" style="margin-top:8px;"></div>
+          <div class="muted" style="margin-top:8px;" id="tollsNote">
+            В отчёте видны конкретные значения. Итог толлов округляется вверх (ceil) ПОСЛЕ суммирования.
+          </div>
+        </div>
+
+        <!-- PARKING LIST -->
+        <div>
+          <div class="muted" style="margin-bottom:6px;" id="parkingListTxt">Паркинг (список)</div>
+          <div class="actions">
+            <button class="tiny" id="addParking">+ <span id="addParkingTxt">Добавить паркинг</span></button>
+            <button class="tiny" id="clearParking"><span id="clearParkingTxt">Очистить паркинг</span></button>
+          </div>
+          <div id="parkingList" class="listbox" style="margin-top:8px;"></div>
+          <div class="muted" style="margin-top:8px;" id="parkingNote">
+            В отчёте видны конкретные значения. Итог паркинга округляется вверх (ceil) ПОСЛЕ суммирования.
+          </div>
+        </div>
+
+
+
+      </div>
+    </div>
+
+    <!-- DEPOSITS -->
+    <div class="card tint-dep">
+      <h2><span id="depH">Депозиты</span> <span class="badge" id="depBadge">в стиле $50*4 =$200</span></h2>
+
+      <div class="row3">
+        <label>
+          <span id="depAmtTxt">Депозит за одну работу</span>
+          <input id="depEach" type="number" step="0.01" value="0"/>
+        </label>
+        <label>
+          <span id="depCountTxt">Количество</span>
+          <input id="depCount" type="number" step="1" value="0"/>
+        </label>
+        <label>
+          <span id="depOverrideTxt">Или вручную total (опционально)</span>
+          <input id="depOverride" type="number" step="0.01" value="0"/>
+        </label>
+      </div>
+      <div class="muted" style="margin-top:8px;" id="depMuted">
+        Если override total > 0 — он заменит формулу amount*count.
+      </div>
+    </div>
+
+    <!-- OUTPUT -->
+    <div class="card tint-out">
+      <h2><span id="outH">Готовый отчёт</span> <span class="badge" id="outBadge">строго как надо</span></h2>
+
+      <textarea id="reportText" class="mono" readonly></textarea>
+
+      <div class="actions" style="margin-top:10px;">
+        <button id="copyBtn" class="primary"><span id="copyTxt">Скопировать отчёт</span></button>
+        <button id="downloadBtn"><span id="downloadTxt">Скачать JSON</span></button>
+      </div>
+
+      <div class="muted" style="margin-top:10px;" id="outMuted">
+        Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra).
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const STORAGE_KEY = "sofa_report_calc_final";
+
+  const num = (v) => {
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  };
+
+  const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+  // округление вверх до доллара (если есть центы — поднять)
+  const dollarCeil = (n) => Math.ceil(Number(n || 0));
+
+  // labels for output (match your sample style)
+  const payLabel = (m) => (m === "cash" ? "cash" : m === "zelle" ? "Zelle" : "Card");
+  const tipLabel = (m) => (m === "cash" ? "cash" : m === "zelle" ? "Zelle" : "Card");
+
+  const moneyPlain = (n) => {
+    const x = round2(num(n));
+    if (Number.isInteger(x)) return String(x);
+    return x.toFixed(2).replace(/\.?0+$/, (m) => (m === "." ? "" : ""));
+  };
+
+  const state = {
+    lang: "ru",
+    date: "",
+    jobs: [],
+    tolls: [],
+    parkingItems: [],
+    logistics: { miles: 0, mpg: 26, gasPrice: 3, flat: 10 },
+    deposits: { each: 0, count: 0, override: 0 }
+  };
+
+  function newJob() {
+    return {
+      status: "completed", // completed | canceled
+      amount: 0,
+      payMethod: "cash",   // cash | zelle | card
+      tip: 0,
+      tipMethod: "cash",   // cash | zelle | card
+      extra: 0
+    };
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      $("autosaveState").textContent = "ON";
+    } catch (e) {
+      $("autosaveState").textContent = "OFF";
+    }
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") Object.assign(state, parsed);
+    } catch (e) {}
+  }
+
+  function setLang(lang) {
+    state.lang = lang;
+    $("lang").value = lang;
+    const t = (ru, en) => (lang === "ru" ? ru : en);
+
+    $("title").textContent = t("Калькулятор ежедневного отчёта", "Daily Cleaning Report Calculator");
+    $("langLabel").textContent = t("Язык", "Language");
+    $("dateLabel").textContent = t("Дата", "Date");
+
+    $("jobsH").textContent = t("Работы", "Jobs");
+    $("jobsHint").textContent = t("вывод как в твоём примере", "output like your sample");
+    $("addJobTxt").textContent = t("Добавить работу", "Add job");
+    $("clearTxt").textContent = t("Очистить всё", "Clear all");
+    $("jobsMuted").textContent = t(
+      "Canceled: поставь статус CANCELED и введи cancel fee (0 если без компенсации).",
+      "Canceled: set status to CANCELED and enter cancel fee (0 if no compensation)."
+    );
+    $("statusTxt").textContent = t("Статус", "Status");
+    $("amountTxt").textContent = t("Сумма", "Amount");
+    $("payTxt").textContent = t("Оплата", "Pay");
+    $("tipTxt").textContent = t("Чаевые", "Tip");
+    $("tipMethodTxt").textContent = t("Метод", "Tip method");
+    $("extraTxt").textContent = t("Экстра", "Extra");
+    $("leadRule").textContent = t(
+      "Lead Referral: контрактора получает 50% от общего Extra.",
+      "Lead Referral: contractor gets 50% of total Extra."
+    );
+
+    $("logH").textContent = t("Логистика", "Logistics");
+    $("milesTxt").textContent = t("Мили", "Miles");
+    $("gasTxt").textContent = t("Средняя цена бензина", "Avg Gas Price");
+    $("tollsTxt").textContent = t("Толлы (список)", "Tolls (list)");
+    $("addTollTxt").textContent = t("Добавить толл", "Add toll");
+    $("clearTollsTxt").textContent = t("Очистить толлы", "Clear tolls");
+    $("tollsNote").textContent = t(
+      "В отчёте видны конкретные значения. Итог толлов округляется вверх (ceil) ПОСЛЕ суммирования.",
+      "Report shows exact toll values. Total tolls are rounded up (ceil) after summing."
+    );
+
+    $("parkingListTxt").textContent = t("Паркинг (список)", "Parking (list)");
+    $("addParkingTxt").textContent = t("Добавить паркинг", "Add parking");
+    $("clearParkingTxt").textContent = t("Очистить паркинг", "Clear parking");
+    $("parkingNote").textContent = t(
+      "В отчёте видны конкретные значения. Итог паркинга округляется вверх (ceil) ПОСЛЕ суммирования.",
+      "Report shows exact parking values. Total parking is rounded up (ceil) after summing."
+    );
+
+    $("flatTxt").textContent = t("Флэт фи за авто/логистику", "Vehicle usage/Logistics flat fee");
+
+    $("depH").textContent = t("Депозиты", "Deposits");
+    $("depBadge").textContent = t("в стиле $50*4 =$200", "$50*4 =$200 style");
+    $("depAmtTxt").textContent = t("Депозит за одну работу", "Deposit amount (each)");
+    $("depCountTxt").textContent = t("Количество", "Count");
+    $("depOverrideTxt").textContent = t("Или вручную total (опционально)", "Or override total (optional)");
+    $("depMuted").textContent = t(
+      "Если override total > 0 — он заменит формулу amount*count.",
+      "If override total > 0, it overrides amount*count."
+    );
+
+    $("outH").textContent = t("Готовый отчёт", "Output");
+    $("outBadge").textContent = t("строго как надо", "exact report format");
+    $("copyTxt").textContent = t("Скопировать отчёт", "Copy report");
+    $("downloadTxt").textContent = t("Скачать JSON", "Download JSON");
+    $("outMuted").textContent = t(
+      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra).",
+      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra)."
+    );
+  }
+
+  function renderJobs() {
+    const tbody = $("jobsTbody");
+    tbody.innerHTML = "";
+
+    state.jobs.forEach((j, idx) => {
+      const tr = document.createElement("tr");
+
+      const td0 = document.createElement("td");
+      td0.innerHTML = `
+        <div class="muted">Job ${idx + 1}</div>
+        <select data-i="${idx}" data-k="status">
+          <option value="completed" ${j.status === "completed" ? "selected" : ""}>COMPLETED</option>
+          <option value="canceled" ${j.status === "canceled" ? "selected" : ""}>CANCELED</option>
+        </select>
+      `;
+
+      const td1 = document.createElement("td");
+      td1.innerHTML = `
+        <label class="muted">${j.status === "canceled" ? "Cancel fee" : "Amount"}</label>
+        <input data-i="${idx}" data-k="amount" type="number" step="0.01" value="${j.amount ?? 0}">
+        <label class="muted" style="margin-top:6px;">Pay method</label>
+        <select data-i="${idx}" data-k="payMethod">
+          <option value="cash" ${j.payMethod === "cash" ? "selected" : ""}>cash</option>
+          <option value="zelle" ${j.payMethod === "zelle" ? "selected" : ""}>Zelle</option>
+          <option value="card" ${j.payMethod === "card" ? "selected" : ""}>Card</option>
+        </select>
+      `;
+
+      const td2 = document.createElement("td");
+      td2.innerHTML = `
+        <label class="muted">Tip amount</label>
+        <input data-i="${idx}" data-k="tip" type="number" step="0.01" value="${j.tip ?? 0}">
+        <label class="muted" style="margin-top:6px;">Tip method</label>
+        <select data-i="${idx}" data-k="tipMethod">
+          <option value="cash" ${j.tipMethod === "cash" ? "selected" : ""}>cash</option>
+          <option value="zelle" ${j.tipMethod === "zelle" ? "selected" : ""}>Zelle</option>
+          <option value="card" ${j.tipMethod === "card" ? "selected" : ""}>Card</option>
+        </select>
+      `;
+
+      const td3 = document.createElement("td");
+      td3.innerHTML = `
+        <label class="muted">Extra</label>
+        <input data-i="${idx}" data-k="extra" type="number" step="0.01" value="${j.extra ?? 0}">
+      `;
+
+      const td4 = document.createElement("td");
+      td4.className = "right";
+      const del = document.createElement("button");
+      del.className = "tiny danger";
+      del.textContent = "Delete";
+      del.addEventListener("click", () => {
+        state.jobs.splice(idx, 1);
+        if (state.jobs.length === 0) state.jobs.push(newJob());
+        save();
+        renderJobs();
+        recalc();
+      });
+      td4.appendChild(del);
+
+      tr.appendChild(td0);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tr.appendChild(td3);
+      tr.appendChild(td4);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderTolls() {
+    const wrap = $("tollsList");
+    wrap.innerHTML = "";
+    state.tolls.forEach((v, idx) => {
+      const row = document.createElement("div");
+      row.className = "listrow";
+
+      const left = document.createElement("div");
+      left.className = "left";
+
+      const tag = document.createElement("span");
+      tag.className = "pill mono";
+      tag.textContent = `toll ${idx + 1}`;
+
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "0.01";
+      inp.value = (v ?? 0);
+      inp.className = "mono";
+      inp.addEventListener("input", () => {
+        state.tolls[idx] = Number(inp.value || 0);
+        recalc();
+      });
+
+      left.appendChild(tag);
+      left.appendChild(inp);
+
+      const del = document.createElement("button");
+      del.className = "tiny danger";
+      del.textContent = "Remove";
+      del.addEventListener("click", () => {
+        state.tolls.splice(idx, 1);
+        save();
+        renderTolls();
+        recalc();
+      });
+
+      row.appendChild(left);
+      row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderParking() {
+    const wrap = $("parkingList");
+    wrap.innerHTML = "";
+    state.parkingItems.forEach((v, idx) => {
+      const row = document.createElement("div");
+      row.className = "listrow";
+
+      const left = document.createElement("div");
+      left.className = "left";
+
+      const tag = document.createElement("span");
+      tag.className = "pill mono";
+      tag.textContent = `parking ${idx + 1}`;
+
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.step = "0.01";
+      inp.value = (v ?? 0);
+      inp.className = "mono";
+      inp.addEventListener("input", () => {
+        state.parkingItems[idx] = Number(inp.value || 0);
+        recalc();
+      });
+
+      left.appendChild(tag);
+      left.appendChild(inp);
+
+      const del = document.createElement("button");
+      del.className = "tiny danger";
+      del.textContent = "Remove";
+      del.addEventListener("click", () => {
+        state.parkingItems.splice(idx, 1);
+        save();
+        renderParking();
+        recalc();
+      });
+
+      row.appendChild(left);
+      row.appendChild(del);
+      wrap.appendChild(row);
+    });
+  }
+
+  function listExpr(list) {
+    if (!list || list.length === 0) return "0";
+    // show exact entered values with 2 decimals (like your sample)
+    return list.map(v => Number(v || 0).toFixed(2)).join("+ ");
+  }
+
+  function listSumCeil(list) {
+    const raw = (list || []).map(v => Number(v || 0)).reduce((a,b)=>a+b,0);
+    return dollarCeil(raw);
+  }
+
+  function depositsExpression() {
+    const each = round2(num($("depEach").value));
+    const count = Math.max(0, Math.floor(num($("depCount").value)));
+    const override = round2(num($("depOverride").value));
+    if (override > 0) return { expr: `$${moneyPlain(override)}`, sum: override, style: "override" };
+    const sum = round2(each * count);
+    if (count === 0 || each === 0) return { expr: "$0", sum: 0, style: "none" };
+    return { expr: `$${moneyPlain(each)}*${count} =$${moneyPlain(sum)}`, sum, style: "mult" };
+  }
+
+  function breakdownLine(values) {
+    const nums = values.map(v => round2(num(v)));
+    if (nums.length === 0) return "$0";
+    const sum = round2(nums.reduce((a,b)=>a+b,0));
+    const left = nums.map(moneyPlain).join("+");
+    return "$" + left + "=" + moneyPlain(sum);
+  }
+
+  function recalc() {
+    state.lang = $("lang").value;
+    state.date = $("date").value.trim();
+
+    state.logistics.miles = num($("miles").value);
+    state.logistics.mpg = Math.max(0.01, num($("mpg").value));
+    state.logistics.gasPrice = num($("gasPrice").value);
+    state.logistics.flat = num($("flat").value);
+
+    state.deposits.each = num($("depEach").value);
+    state.deposits.count = num($("depCount").value);
+    state.deposits.override = num($("depOverride").value);
+
+    const cashAmounts = [];
+    const zelleAmounts = [];
+    const cardAmounts = [];
+
+    let cashTipsSum = 0, zelleTipsSum = 0, cardTipsSum = 0;
+    let extraTotal = 0;
+
+    state.jobs.forEach((j) => {
+      const amount = round2(num(j.amount));     // don't ceil income
+      const tip = dollarCeil(j.tip);            // ceil tip per job
+      const extra = dollarCeil(j.extra);        // ceil extra per job
+      extraTotal += extra;
+
+      if (j.payMethod === "cash" && amount) cashAmounts.push(amount);
+      if (j.payMethod === "zelle" && amount) zelleAmounts.push(amount);
+      if (j.payMethod === "card" && amount) cardAmounts.push(amount);
+
+      if (tip > 0) {
+        if (j.tipMethod === "cash") cashTipsSum += tip;
+        if (j.tipMethod === "zelle") zelleTipsSum += tip;
+        if (j.tipMethod === "card") cardTipsSum += tip;
+      }
+    });
+
+    const cashSum = round2(cashAmounts.reduce((a,b)=>a+b,0));
+    const zelleSum = round2(zelleAmounts.reduce((a,b)=>a+b,0));
+    const cardSum = round2(cardAmounts.reduce((a,b)=>a+b,0));
+
+    // logistics: ceil after formula
+    const logisticsRaw = (state.logistics.miles / state.logistics.mpg) * state.logistics.gasPrice;
+    const logisticsFee = dollarCeil(logisticsRaw);
+
+    // tolls/parking: show exact values, ceil only total sum
+    const tollExpr = listExpr(state.tolls);
+    const tollsSum = listSumCeil(state.tolls);
+
+    const parkingExpr = listExpr(state.parkingItems);
+    const parkingSum = listSumCeil(state.parkingItems);
+
+    // deposits
+    const dep = depositsExpression();
+
+    // lead fee: 50% of total extra (ceil on the final)
+    const leadFee = dollarCeil(extraTotal * 0.5);
+
+    const totalToday = round2(cashSum + zelleSum + cardSum + dep.sum);
+
+    const nonCashTips = (zelleTipsSum + cardTipsSum);
+    const reimb = (logisticsFee + tollsSum + parkingSum + round2(state.logistics.flat));
+    const due = (reimb + nonCashTips + leadFee);
+
+    const lines = [];
+    lines.push(state.date || "");
+    lines.push("");
+
+    state.jobs.forEach((j, idx) => {
+      const amt = moneyPlain(j.amount);
+      const pay = payLabel(j.payMethod);
+
+      let tipPart = "$no tip";
+      const tipCeiled = dollarCeil(j.tip);
+      if (tipCeiled > 0) tipPart = `$${moneyPlain(tipCeiled)}${tipLabel(j.tipMethod)} tip`;
+
+      lines.push(`${idx + 1}.$${amt}${pay}.$${tipPart.replace(/^\$/, "")}`);
+    });
+
+    lines.push("");
+    lines.push(`Logistics & Mobilization Fee: ${moneyPlain(state.logistics.miles)} / ${moneyPlain(state.logistics.mpg)} * ${moneyPlain(state.logistics.gasPrice)}=${moneyPlain(logisticsFee)}`);
+    lines.push(`Pass-Through Toll expense: ${tollExpr}=${moneyPlain(tollsSum)}`);
+    lines.push(`On-Site Access/Parking surcharge: ${parkingExpr}=${moneyPlain(parkingSum)}`);
+    lines.push(`Vehicle usage/Logistics flat fee: ${moneyPlain(state.logistics.flat)}`);
+    lines.push("");
+    lines.push(`Lead Referral & Platform Access Fee: ${moneyPlain(leadFee)}`);
+    lines.push("");
+    lines.push("");
+
+    lines.push(`Cash:${breakdownLine(cashAmounts)}`);
+    lines.push(`Zelle:${breakdownLine(zelleAmounts)}`);
+    lines.push(`Card:${breakdownLine(cardAmounts)}`);
+
+    if (dep.style === "mult") lines.push(`Deposit:${dep.expr}`);
+    else if (dep.style === "override") lines.push(`Deposit:${dep.expr}`);
+    else lines.push(`Deposit:$0`);
+
+    lines.push(`Total:$${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+${moneyPlain(dep.sum)} =$${moneyPlain(totalToday)}`);
+    lines.push("");
+
+    const baseParts = [
+      moneyPlain(logisticsFee),
+      moneyPlain(tollsSum),
+      moneyPlain(parkingSum),
+      moneyPlain(state.logistics.flat)
+    ];
+    const baseExpr = `(${baseParts.join("+")})`;
+
+    const addParts = [];
+    if (nonCashTips > 0) addParts.push(moneyPlain(nonCashTips));
+    if (leadFee > 0) addParts.push(moneyPlain(leadFee));
+
+    const addExpr = addParts.length ? ` + ${addParts.join(" + ")}` : "";
+    lines.push(`Total due to contractor: ${baseExpr}${addExpr} =${moneyPlain(due)}`);
+
+    $("reportText").value = lines.join("\n");
+
+    save();
+  }
+
+  function wire() {
+    $("lang").addEventListener("change", () => { setLang($("lang").value); recalc(); });
+
+    ["date","miles","mpg","gasPrice","flat","depEach","depCount","depOverride"]
+      .forEach(id => {
+        $(id).addEventListener("input", recalc);
+        $(id).addEventListener("change", recalc);
+      });
+
+    $("addJob").addEventListener("click", () => {
+      state.jobs.push(newJob());
+      save();
+      renderJobs();
+      recalc();
+    });
+
+    $("clearAll").addEventListener("click", () => {
+      if (!confirm("Clear everything?")) return;
+      state.jobs = [newJob()];
+      state.tolls = [];
+      state.parkingItems = [];
+      state.logistics = { miles: 0, mpg: 26, gasPrice: 3, flat: 10 };
+      state.deposits = { each: 0, count: 0, override: 0 };
+
+      $("miles").value = 0;
+      $("mpg").value = 26;
+      $("gasPrice").value = 3;
+      $("flat").value = 10;
+      $("depEach").value = 0;
+      $("depCount").value = 0;
+      $("depOverride").value = 0;
+
+      renderJobs();
+      renderTolls();
+      renderParking();
+      recalc();
+    });
+
+    $("jobsTbody").addEventListener("input", (e) => {
+      const el = e.target;
+      const i = Number(el.getAttribute("data-i"));
+      const k = el.getAttribute("data-k");
+      if (!Number.isFinite(i) || !k) return;
+      const job = state.jobs[i];
+      if (!job) return;
+
+      if (k === "amount" || k === "tip" || k === "extra") job[k] = num(el.value);
+      else job[k] = el.value;
+
+      if (k === "status") renderJobs();
+      save();
+      recalc();
+    });
+
+    $("addToll").addEventListener("click", () => {
+      state.tolls.push(0);
+      save();
+      renderTolls();
+      recalc();
+    });
+
+    $("clearTolls").addEventListener("click", () => {
+      state.tolls = [];
+      save();
+      renderTolls();
+      recalc();
+    });
+
+    $("addParking").addEventListener("click", () => {
+      state.parkingItems.push(0);
+      save();
+      renderParking();
+      recalc();
+    });
+
+    $("clearParking").addEventListener("click", () => {
+      state.parkingItems = [];
+      save();
+      renderParking();
+      recalc();
+    });
+
+    $("copyBtn").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText($("reportText").value);
+        alert("Copied ✅");
+      } catch (e) {
+        alert("Clipboard blocked. Select text manually and copy.");
+      }
+    });
+
+    $("downloadBtn").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `sofa-report-${(state.date || "date")}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    });
+  }
+
+  // INIT
+  load();
+
+  if (!Array.isArray(state.jobs) || state.jobs.length === 0) state.jobs = [newJob()];
+  if (!Array.isArray(state.tolls)) state.tolls = [];
+  if (!Array.isArray(state.parkingItems)) state.parkingItems = [];
+
+  $("lang").value = state.lang || "ru";
+  setLang($("lang").value);
+
+  $("date").value = state.date || "01/04";
+
+  $("miles").value = state.logistics?.miles ?? 0;
+  $("mpg").value = state.logistics?.mpg ?? 26;
+  $("gasPrice").value = state.logistics?.gasPrice ?? 3;
+  $("flat").value = state.logistics?.flat ?? 10;
+
+  $("depEach").value = state.deposits?.each ?? 0;
+  $("depCount").value = state.deposits?.count ?? 0;
+  $("depOverride").value = state.deposits?.override ?? 0;
+
+  renderJobs();
+  renderTolls();
+  renderParking();
+  wire();
+  recalc();
+})();
+</script>
+</body>
+</html>
