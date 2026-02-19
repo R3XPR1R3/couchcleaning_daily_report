@@ -64,7 +64,6 @@
     /* Section tints */
     .tint-jobs{ box-shadow: 0 0 0 1px rgba(120,120,255,.10) inset; }
     .tint-log{  box-shadow: 0 0 0 1px rgba(0,200,150,.10) inset; }
-    .tint-dep{  box-shadow: 0 0 0 1px rgba(255,180,0,.10) inset; }
     .tint-out{  box-shadow: 0 0 0 1px rgba(255,90,140,.10) inset; }
 
     label{ display:grid; gap:6px; font-size:13px; opacity:.95; }
@@ -75,13 +74,14 @@
       border: 1px solid rgba(127,127,127,.35);
       background: rgba(0,0,0,.05);
     }
-    textarea{ width:100%; min-height: 260px; }
+    textarea{ width:100%; min-height: 300px; }
     button{ cursor:pointer; background: rgba(127,127,127,.08); }
     button.primary{ font-weight:700; background: rgba(120,120,255,.18); border-color: rgba(120,120,255,.35); }
     button.danger{ background: rgba(255,90,140,.15); border-color: rgba(255,90,140,.35); }
     .muted{ opacity:.75; font-size:12px; }
     .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
     .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    .row4{ display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; }
 
     table{ width:100%; border-collapse: collapse; overflow:hidden; border-radius: 12px; }
     th, td{ border-bottom: 1px solid rgba(127,127,127,.22); padding: 8px; vertical-align: top; }
@@ -116,7 +116,7 @@
     }
 
     @media (max-width: 860px){
-      .row, .row3{ grid-template-columns: 1fr; }
+      .row, .row3, .row4{ grid-template-columns: 1fr; }
       th:nth-child(5), td:nth-child(5){ display:none; }
     }
   </style>
@@ -136,6 +136,13 @@
     <span class="pill">
       <span id="dateLabel">Дата</span>
       <input id="date" type="text" placeholder="01/04" class="mono" style="width:110px"/>
+    </span>
+
+    <span class="pill">
+      <span id="dayLabel">День</span>
+      <input id="dayIndex" type="number" min="1" step="1" value="1" class="mono" style="width:70px"/>
+      <span class="muted mono">day /</span>
+      <input id="dayTotal" type="number" min="1" step="1" value="3" class="mono" style="width:70px"/>
     </span>
 
     <span class="pill">
@@ -164,7 +171,7 @@
               <th style="min-width:180px;"># / <span id="statusTxt">Статус</span></th>
               <th style="min-width:200px;"><span id="amountTxt">Сумма</span> / <span id="payTxt">Оплата</span></th>
               <th style="min-width:240px;"><span id="tipTxt">Чаевые</span> / <span id="tipMethodTxt">Метод</span></th>
-              <th style="min-width:200px;"><span id="extraTxt">Экстра</span></th>
+              <th style="min-width:260px;"><span id="extraTxt">Экстра</span> / Deposit</th>
               <th class="right" style="min-width:120px;">&nbsp;</th>
             </tr>
           </thead>
@@ -173,7 +180,7 @@
       </div>
 
       <div class="muted" style="margin-top:10px;" id="leadRule">
-        Lead Referral: контрактора получает 50% от общего Extra.
+        Extra split: 50% company / 50% contractor. Company share shown separately so boss sees it.
       </div>
     </div>
 
@@ -181,28 +188,27 @@
     <div class="card tint-log">
       <h2><span id="logH">Логистика</span> <span class="badge">miles / mpg * gas</span></h2>
 
-    <div class="row4">
-      <label>
-        <span id="milesTxt">Мили</span>
-        <input id="miles" type="number" step="0.01" value="0"/>
-      </label>
+      <div class="row4">
+        <label>
+          <span id="milesTxt">Мили</span>
+          <input id="miles" type="number" step="0.01" value="0"/>
+        </label>
 
-      <label>
-        MPG
-        <input id="mpg" type="number" step="0.01" value="26"/>
-      </label>
+        <label>
+          MPG
+          <input id="mpg" type="number" step="0.01" value="26"/>
+        </label>
 
-      <label>
-        <span id="gasTxt">Средняя цена бензина</span>
-        <input id="gasPrice" type="number" step="0.01" value="3"/>
-      </label>
+        <label>
+          <span id="gasTxt">Средняя цена бензина</span>
+          <input id="gasPrice" type="number" step="0.01" value="3"/>
+        </label>
 
-      <label>
-        <span id="flatTxt">Флэт фи за авто/логистику</span>
-        <input id="flat" type="number" step="0.01" value="10"/>
-      </label>
-    </div>
-
+        <label>
+          <span id="flatTxt">Флэт фи за авто/логистику</span>
+          <input id="flat" type="number" step="0.01" value="10"/>
+        </label>
+      </div>
 
       <div class="row3" style="margin-top:12px;">
         <!-- TOLLS LIST -->
@@ -231,31 +237,14 @@
           </div>
         </div>
 
-
-
-      </div>
-    </div>
-
-    <!-- DEPOSITS -->
-    <div class="card tint-dep">
-      <h2><span id="depH">Депозиты</span> <span class="badge" id="depBadge">в стиле $50*4 =$200</span></h2>
-
-      <div class="row3">
-        <label>
-          <span id="depAmtTxt">Депозит за одну работу</span>
-          <input id="depEach" type="number" step="0.01" value="0"/>
-        </label>
-        <label>
-          <span id="depCountTxt">Количество</span>
-          <input id="depCount" type="number" step="1" value="0"/>
-        </label>
-        <label>
-          <span id="depOverrideTxt">Или вручную total (опционально)</span>
-          <input id="depOverride" type="number" step="0.01" value="0"/>
-        </label>
-      </div>
-      <div class="muted" style="margin-top:8px;" id="depMuted">
-        Если override total > 0 — он заменит формулу amount*count.
+        <div>
+          <div class="muted" style="margin-bottom:6px;">Notes</div>
+          <div class="listbox mono">
+            - Tips are ceiled per job (as before).<br>
+            - Extra is ceiled per job, then split 50/50 on total (company gets ceil-half).<br>
+            - Deposit is NOT part of job amount; it's shown and totaled separately.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -271,7 +260,7 @@
       </div>
 
       <div class="muted" style="margin-top:10px;" id="outMuted">
-        Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra).
+        Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (contractor side extra).
       </div>
     </div>
   </div>
@@ -279,7 +268,7 @@
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const STORAGE_KEY = "sofa_report_calc_final";
+  const STORAGE_KEY = "sofa_report_calc_final_v2";
 
   const num = (v) => {
     const x = Number(v);
@@ -287,11 +276,8 @@
   };
 
   const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
-
-  // округление вверх до доллара (если есть центы — поднять)
   const dollarCeil = (n) => Math.ceil(Number(n || 0));
 
-  // labels for output (match your sample style)
   const payLabel = (m) => (m === "cash" ? "cash" : m === "zelle" ? "Zelle" : "Card");
   const tipLabel = (m) => (m === "cash" ? "cash" : m === "zelle" ? "Zelle" : "Card");
 
@@ -304,11 +290,12 @@
   const state = {
     lang: "ru",
     date: "",
+    dayIndex: 1,
+    dayTotal: 3,
     jobs: [],
     tolls: [],
     parkingItems: [],
-    logistics: { miles: 0, mpg: 26, gasPrice: 3, flat: 10 },
-    deposits: { each: 0, count: 0, override: 0 }
+    logistics: { miles: 0, mpg: 26, gasPrice: 3, flat: 10 }
   };
 
   function newJob() {
@@ -318,7 +305,8 @@
       payMethod: "cash",   // cash | zelle | card
       tip: 0,
       tipMethod: "cash",   // cash | zelle | card
-      extra: 0
+      extra: 0,
+      deposit: 0
     };
   }
 
@@ -348,6 +336,7 @@
     $("title").textContent = t("Калькулятор ежедневного отчёта", "Daily Cleaning Report Calculator");
     $("langLabel").textContent = t("Язык", "Language");
     $("dateLabel").textContent = t("Дата", "Date");
+    $("dayLabel").textContent = t("День", "Day");
 
     $("jobsH").textContent = t("Работы", "Jobs");
     $("jobsHint").textContent = t("вывод как в твоём примере", "output like your sample");
@@ -363,10 +352,6 @@
     $("tipTxt").textContent = t("Чаевые", "Tip");
     $("tipMethodTxt").textContent = t("Метод", "Tip method");
     $("extraTxt").textContent = t("Экстра", "Extra");
-    $("leadRule").textContent = t(
-      "Lead Referral: контрактора получает 50% от общего Extra.",
-      "Lead Referral: contractor gets 50% of total Extra."
-    );
 
     $("logH").textContent = t("Логистика", "Logistics");
     $("milesTxt").textContent = t("Мили", "Miles");
@@ -389,23 +374,13 @@
 
     $("flatTxt").textContent = t("Флэт фи за авто/логистику", "Vehicle usage/Logistics flat fee");
 
-    $("depH").textContent = t("Депозиты", "Deposits");
-    $("depBadge").textContent = t("в стиле $50*4 =$200", "$50*4 =$200 style");
-    $("depAmtTxt").textContent = t("Депозит за одну работу", "Deposit amount (each)");
-    $("depCountTxt").textContent = t("Количество", "Count");
-    $("depOverrideTxt").textContent = t("Или вручную total (опционально)", "Or override total (optional)");
-    $("depMuted").textContent = t(
-      "Если override total > 0 — он заменит формулу amount*count.",
-      "If override total > 0, it overrides amount*count."
-    );
-
     $("outH").textContent = t("Готовый отчёт", "Output");
     $("outBadge").textContent = t("строго как надо", "exact report format");
     $("copyTxt").textContent = t("Скопировать отчёт", "Copy report");
     $("downloadTxt").textContent = t("Скачать JSON", "Download JSON");
     $("outMuted").textContent = t(
-      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra).",
-      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (50% extra)."
+      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (contractor side extra).",
+      "Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (contractor side extra)."
     );
   }
 
@@ -453,6 +428,8 @@
       td3.innerHTML = `
         <label class="muted">Extra</label>
         <input data-i="${idx}" data-k="extra" type="number" step="0.01" value="${j.extra ?? 0}">
+        <label class="muted" style="margin-top:6px;">Deposit</label>
+        <input data-i="${idx}" data-k="deposit" type="number" step="0.01" value="${j.deposit ?? 0}">
       `;
 
       const td4 = document.createElement("td");
@@ -566,23 +543,12 @@
 
   function listExpr(list) {
     if (!list || list.length === 0) return "0";
-    // show exact entered values with 2 decimals (like your sample)
     return list.map(v => Number(v || 0).toFixed(2)).join("+ ");
   }
 
   function listSumCeil(list) {
     const raw = (list || []).map(v => Number(v || 0)).reduce((a,b)=>a+b,0);
     return dollarCeil(raw);
-  }
-
-  function depositsExpression() {
-    const each = round2(num($("depEach").value));
-    const count = Math.max(0, Math.floor(num($("depCount").value)));
-    const override = round2(num($("depOverride").value));
-    if (override > 0) return { expr: `$${moneyPlain(override)}`, sum: override, style: "override" };
-    const sum = round2(each * count);
-    if (count === 0 || each === 0) return { expr: "$0", sum: 0, style: "none" };
-    return { expr: `$${moneyPlain(each)}*${count} =$${moneyPlain(sum)}`, sum, style: "mult" };
   }
 
   function breakdownLine(values) {
@@ -593,18 +559,25 @@
     return "$" + left + "=" + moneyPlain(sum);
   }
 
+  function breakdownCeiledLine(values) {
+    const nums = values.map(v => dollarCeil(v));
+    if (nums.length === 0) return "$0";
+    const sum = nums.reduce((a,b)=>a+b,0);
+    const left = nums.map(String).join("+");
+    return "$" + left + "=" + sum;
+  }
+
   function recalc() {
     state.lang = $("lang").value;
     state.date = $("date").value.trim();
+
+    state.dayIndex = Math.max(1, Math.floor(num($("dayIndex").value)));
+    state.dayTotal = Math.max(1, Math.floor(num($("dayTotal").value)));
 
     state.logistics.miles = num($("miles").value);
     state.logistics.mpg = Math.max(0.01, num($("mpg").value));
     state.logistics.gasPrice = num($("gasPrice").value);
     state.logistics.flat = num($("flat").value);
-
-    state.deposits.each = num($("depEach").value);
-    state.deposits.count = num($("depCount").value);
-    state.deposits.override = num($("depOverride").value);
 
     const cashAmounts = [];
     const zelleAmounts = [];
@@ -612,21 +585,31 @@
 
     let cashTipsSum = 0, zelleTipsSum = 0, cardTipsSum = 0;
     let extraTotal = 0;
+    let depositsSum = 0;
+
+    const extraArr = [];
+    const depositArr = [];
 
     state.jobs.forEach((j) => {
-      const amount = round2(num(j.amount));     // don't ceil income
-      const tip = dollarCeil(j.tip);            // ceil tip per job
-      const extra = dollarCeil(j.extra);        // ceil extra per job
-      extraTotal += extra;
+      const amount = round2(num(j.amount));  // income not ceiled
+      const tipCeiled = dollarCeil(j.tip);   // tip ceiled per job
+      const extraCeiled = dollarCeil(j.extra); // extra ceiled per job
+      const depCeiled = dollarCeil(j.deposit); // deposit ceiled per job
+
+      extraArr.push(extraCeiled);
+      depositArr.push(depCeiled);
+
+      extraTotal += extraCeiled;
+      depositsSum += depCeiled;
 
       if (j.payMethod === "cash" && amount) cashAmounts.push(amount);
       if (j.payMethod === "zelle" && amount) zelleAmounts.push(amount);
       if (j.payMethod === "card" && amount) cardAmounts.push(amount);
 
-      if (tip > 0) {
-        if (j.tipMethod === "cash") cashTipsSum += tip;
-        if (j.tipMethod === "zelle") zelleTipsSum += tip;
-        if (j.tipMethod === "card") cardTipsSum += tip;
+      if (tipCeiled > 0) {
+        if (j.tipMethod === "cash") cashTipsSum += tipCeiled;
+        if (j.tipMethod === "zelle") zelleTipsSum += tipCeiled;
+        if (j.tipMethod === "card") cardTipsSum += tipCeiled;
       }
     });
 
@@ -645,22 +628,26 @@
     const parkingExpr = listExpr(state.parkingItems);
     const parkingSum = listSumCeil(state.parkingItems);
 
-    // deposits
-    const dep = depositsExpression();
+    // Extra split (avoid "пересдача" from rounding)
+    const companyExtra = dollarCeil(extraTotal / 2);
+    const contractorExtra = Math.max(0, extraTotal - companyExtra);
 
-    // lead fee: 50% of total extra (ceil on the final)
-    const leadFee = dollarCeil(extraTotal * 0.5);
+    // "Grand total collected" (so deposit/extra are NOT "part of job amount")
+    const tipsTotal = (cashTipsSum + zelleTipsSum + cardTipsSum);
+    const grandTotalCollected = round2(cashSum + zelleSum + cardSum + tipsTotal + extraTotal + depositsSum);
 
-    const totalToday = round2(cashSum + zelleSum + cardSum + dep.sum);
-
+    // Due to contractor: reimb + NON-cash tips + contractor side extra
     const nonCashTips = (zelleTipsSum + cardTipsSum);
     const reimb = (logisticsFee + tollsSum + parkingSum + round2(state.logistics.flat));
-    const due = (reimb + nonCashTips + leadFee);
+    const due = (reimb + nonCashTips + contractorExtra);
 
     const lines = [];
-    lines.push(state.date || "");
+
+    const dayTag = `${state.dayIndex} day / ${state.dayTotal}`;
+    lines.push((state.date || "").trim() + (state.date ? " " : "") + dayTag);
     lines.push("");
 
+    // Jobs lines
     state.jobs.forEach((j, idx) => {
       const amt = moneyPlain(j.amount);
       const pay = payLabel(j.payMethod);
@@ -669,28 +656,43 @@
       const tipCeiled = dollarCeil(j.tip);
       if (tipCeiled > 0) tipPart = `$${moneyPlain(tipCeiled)}${tipLabel(j.tipMethod)} tip`;
 
-      lines.push(`${idx + 1}.$${amt}${pay}.$${tipPart.replace(/^\$/, "")}`);
+      const depCeiled = dollarCeil(j.deposit);
+      const depPart = depCeiled > 0 ? ` (${moneyPlain(depCeiled)} deposit)` : "";
+
+      const extraCeiled = dollarCeil(j.extra);
+      const extraPart = extraCeiled > 0 ? ` (${moneyPlain(extraCeiled)} extra)` : "";
+
+      // Example: 1.$145Zelle.$no tip (50 deposit)
+      lines.push(`${idx + 1}.$${amt}${pay}.$${tipPart.replace(/^\$/, "")}${depPart}${extraPart}`);
     });
 
     lines.push("");
-    lines.push(`Logistics & Mobilization Fee: ${moneyPlain(state.logistics.miles)} / ${moneyPlain(state.logistics.mpg)} * ${moneyPlain(state.logistics.gasPrice)}=${moneyPlain(logisticsFee)}`);
-    lines.push(`Pass-Through Toll expense: ${tollExpr}=${moneyPlain(tollsSum)}`);
-    lines.push(`On-Site Access/Parking surcharge: ${parkingExpr}=${moneyPlain(parkingSum)}`);
-    lines.push(`Vehicle usage/Logistics flat fee: ${moneyPlain(state.logistics.flat)}`);
+    lines.push(`Logistics & Mobilization Fee: ${moneyPlain(state.logistics.miles)} / ${moneyPlain(state.logistics.mpg)} * ${moneyPlain(state.logistics.gasPrice)}=$${moneyPlain(logisticsFee)}`);
+    lines.push(`Pass-Through Toll expense: $${tollExpr}=${moneyPlain(tollsSum)}`);
+    lines.push(`On-Site Access/Parking surcharge: $${parkingExpr}=${moneyPlain(parkingSum)}`);
+    lines.push(`Vehicle usage/Logistics flat fee: $${moneyPlain(state.logistics.flat)}`);
     lines.push("");
-    lines.push(`Lead Referral & Platform Access Fee: ${moneyPlain(leadFee)}`);
-    lines.push("");
+
+    lines.push(`Extra total: ${breakdownCeiledLine(extraArr)}   (shown separate, NOT part of job amount)`);
+    lines.push(`Company side extra (50%): $${moneyPlain(companyExtra)}`);
+    lines.push(`Contractor side extra (50%): $${moneyPlain(contractorExtra)}`);
     lines.push("");
 
     lines.push(`Cash:${breakdownLine(cashAmounts)}`);
     lines.push(`Zelle:${breakdownLine(zelleAmounts)}`);
     lines.push(`Card:${breakdownLine(cardAmounts)}`);
+    lines.push("");
 
-    if (dep.style === "mult") lines.push(`Deposit:${dep.expr}`);
-    else if (dep.style === "override") lines.push(`Deposit:${dep.expr}`);
-    else lines.push(`Deposit:$0`);
+    lines.push(`Tips cash:$${moneyPlain(cashTipsSum)}`);
+    lines.push(`Tips Zelle:$${moneyPlain(zelleTipsSum)}`);
+    lines.push(`Tips Card:$${moneyPlain(cardTipsSum)}`);
+    lines.push("");
 
-    lines.push(`Total:$${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+${moneyPlain(dep.sum)} =$${moneyPlain(totalToday)}`);
+    lines.push(`Deposit:${breakdownCeiledLine(depositArr)}`);
+    lines.push("");
+
+    // Grand total collected (for transparency)
+    lines.push(`Grand Total Collected: $${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+${moneyPlain(tipsTotal)}+${moneyPlain(extraTotal)}+${moneyPlain(depositsSum)} =$${moneyPlain(grandTotalCollected)}`);
     lines.push("");
 
     const baseParts = [
@@ -703,20 +705,19 @@
 
     const addParts = [];
     if (nonCashTips > 0) addParts.push(moneyPlain(nonCashTips));
-    if (leadFee > 0) addParts.push(moneyPlain(leadFee));
+    if (contractorExtra > 0) addParts.push(moneyPlain(contractorExtra));
 
     const addExpr = addParts.length ? ` + ${addParts.join(" + ")}` : "";
     lines.push(`Total due to contractor: ${baseExpr}${addExpr} =${moneyPlain(due)}`);
 
     $("reportText").value = lines.join("\n");
-
     save();
   }
 
   function wire() {
     $("lang").addEventListener("change", () => { setLang($("lang").value); recalc(); });
 
-    ["date","miles","mpg","gasPrice","flat","depEach","depCount","depOverride"]
+    ["date","dayIndex","dayTotal","miles","mpg","gasPrice","flat"]
       .forEach(id => {
         $(id).addEventListener("input", recalc);
         $(id).addEventListener("change", recalc);
@@ -735,15 +736,15 @@
       state.tolls = [];
       state.parkingItems = [];
       state.logistics = { miles: 0, mpg: 26, gasPrice: 3, flat: 10 };
-      state.deposits = { each: 0, count: 0, override: 0 };
+      state.dayIndex = 1;
+      state.dayTotal = 3;
 
       $("miles").value = 0;
       $("mpg").value = 26;
       $("gasPrice").value = 3;
       $("flat").value = 10;
-      $("depEach").value = 0;
-      $("depCount").value = 0;
-      $("depOverride").value = 0;
+      $("dayIndex").value = 1;
+      $("dayTotal").value = 3;
 
       renderJobs();
       renderTolls();
@@ -759,7 +760,7 @@
       const job = state.jobs[i];
       if (!job) return;
 
-      if (k === "amount" || k === "tip" || k === "extra") job[k] = num(el.value);
+      if (k === "amount" || k === "tip" || k === "extra" || k === "deposit") job[k] = num(el.value);
       else job[k] = el.value;
 
       if (k === "status") renderJobs();
@@ -827,15 +828,13 @@
   setLang($("lang").value);
 
   $("date").value = state.date || "01/04";
+  $("dayIndex").value = state.dayIndex ?? 1;
+  $("dayTotal").value = state.dayTotal ?? 3;
 
   $("miles").value = state.logistics?.miles ?? 0;
   $("mpg").value = state.logistics?.mpg ?? 26;
   $("gasPrice").value = state.logistics?.gasPrice ?? 3;
   $("flat").value = state.logistics?.flat ?? 10;
-
-  $("depEach").value = state.deposits?.each ?? 0;
-  $("depCount").value = state.deposits?.count ?? 0;
-  $("depOverride").value = state.deposits?.override ?? 0;
 
   renderJobs();
   renderTolls();
