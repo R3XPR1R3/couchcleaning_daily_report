@@ -644,7 +644,9 @@
     const lines = [];
 
     const dayTag = `${state.dayIndex} day / ${state.dayTotal}`;
-    lines.push((state.date || "").trim() + (state.date ? " " : "") + dayTag);
+    lines.push((state.date || "").trim() + (state.date ? " " : "") );
+    lines.push("");
+    lines.push(dayTag);
     lines.push("");
 
     // Jobs lines
