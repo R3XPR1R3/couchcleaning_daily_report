@@ -675,7 +675,7 @@
     lines.push(`Vehicle usage/Logistics flat fee: $${moneyPlain(state.logistics.flat)}`);
     lines.push("");
 
-    lines.push(`Extra total: ${breakdownCeiledLine(extraArr)}   (shown separate, NOT part of job amount)`);
+    lines.push(`Extra total: ${breakdownCeiledLine(extraArr)}`);
     lines.push(`Company side extra (50%): $${moneyPlain(companyExtra)}`);
     lines.push(`Contractor side extra (50%): $${moneyPlain(contractorExtra)}`);
     lines.push("");
