@@ -634,7 +634,7 @@
 
     // "Grand total collected" (so deposit/extra are NOT "part of job amount")
     const tipsTotal = (cashTipsSum + zelleTipsSum + cardTipsSum);
-    const grandTotalCollected = round2(cashSum + zelleSum + cardSum + tipsTotal + extraTotal + depositsSum);
+    const grandTotalCollected = round2(cashSum + zelleSum + cardSum + tipsTotal + companyExtra + depositsSum);
 
     // Due to contractor: reimb + NON-cash tips + contractor side extra
     const nonCashTips = (zelleTipsSum + cardTipsSum);
@@ -692,7 +692,12 @@
     lines.push("");
 
     // Grand total collected (for transparency)
-    lines.push(`Grand Total Collected: $${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+${moneyPlain(tipsTotal)}+${moneyPlain(extraTotal)}+${moneyPlain(depositsSum)} =$${moneyPlain(grandTotalCollected)}`);
+    lines.push(
+      `Grand Total Collected: ` +
+      `$${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+` +
+      `${moneyPlain(tipsTotal)}+${moneyPlain(companyExtra)}+` +
+      `${moneyPlain(depositsSum)} =$${moneyPlain(grandTotalCollected)}`
+    )
     lines.push("");
 
     const baseParts = [
