@@ -248,6 +248,15 @@
       </div>
     </div>
 
+    <!-- LEAD REFERRAL -->
+    <div class="card">
+      <h2><span id="leadFeeH">Lead Referral & Platform Access Fee</span></h2>
+      <label>
+        <span id="leadFeeTxt">Сумма</span>
+        <input id="leadFee" type="number" step="0.01" value="0"/>
+      </label>
+    </div>
+
     <!-- OUTPUT -->
     <div class="card tint-out">
       <h2><span id="outH">Готовый отчёт</span> <span class="badge" id="outBadge">строго как надо</span></h2>
@@ -260,7 +269,7 @@
       </div>
 
       <div class="muted" style="margin-top:10px;" id="outMuted">
-        Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat) + (zelle+card tips) + (contractor side extra).
+        Total due to contractor = (logistics + tolls_total(ceil) + parking_total(ceil) + flat + lead_fee) + (zelle+card tips) + (contractor side extra).
       </div>
     </div>
   </div>
@@ -287,6 +296,10 @@
     return x.toFixed(2).replace(/\.?0+$/, (m) => (m === "." ? "" : ""));
   };
 
+  const formatComma = (n) => {
+    return Math.round(num(n)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
   const state = {
     lang: "ru",
     date: "",
@@ -295,7 +308,8 @@
     jobs: [],
     tolls: [],
     parkingItems: [],
-    logistics: { miles: 0, mpg: 26, gasPrice: 3, flat: 10 }
+    logistics: { miles: 0, mpg: 26, gasPrice: 3, flat: 10 },
+    leadFee: 0
   };
 
   function newJob() {
@@ -373,6 +387,8 @@
     );
 
     $("flatTxt").textContent = t("Флэт фи за авто/логистику", "Vehicle usage/Logistics flat fee");
+    $("leadFeeH").textContent = t("Lead Referral & Platform Access Fee", "Lead Referral & Platform Access Fee");
+    $("leadFeeTxt").textContent = t("Сумма", "Amount");
 
     $("outH").textContent = t("Готовый отчёт", "Output");
     $("outBadge").textContent = t("строго как надо", "exact report format");
@@ -578,6 +594,7 @@
     state.logistics.mpg = Math.max(0.01, num($("mpg").value));
     state.logistics.gasPrice = num($("gasPrice").value);
     state.logistics.flat = num($("flat").value);
+    state.leadFee = num($("leadFee").value);
 
     const cashAmounts = [];
     const zelleAmounts = [];
@@ -638,84 +655,122 @@
 
     // Due to contractor: reimb + NON-cash tips + contractor side extra
     const nonCashTips = (zelleTipsSum + cardTipsSum);
-    const reimb = (logisticsFee + tollsSum + parkingSum + round2(state.logistics.flat));
+    const leadFee = dollarCeil(state.leadFee);
+    const reimb = (logisticsFee + tollsSum + parkingSum + round2(state.logistics.flat) + leadFee);
     const due = (reimb + nonCashTips + contractorExtra);
 
     const lines = [];
 
     const dayTag = `${state.dayIndex} day / ${state.dayTotal}`;
-    lines.push((state.date || "").trim() + (state.date ? " " : "") );
+    lines.push((state.date || "").trim());
     lines.push("");
     lines.push(dayTag);
     lines.push("");
 
     // Jobs lines
     state.jobs.forEach((j, idx) => {
-      const amt = moneyPlain(j.amount);
-      const pay = payLabel(j.payMethod);
+      if (j.status === "canceled") {
+        lines.push(`${idx + 1}.cancel`);
+      } else {
+        const amt = moneyPlain(j.amount);
+        const pay = payLabel(j.payMethod);
+        const tipCeiled = dollarCeil(j.tip);
+        let tipPart;
+        if (tipCeiled > 0) {
+          tipPart = `${moneyPlain(tipCeiled)} ${tipLabel(j.tipMethod)} tip`;
+        } else {
+          tipPart = "0 tips";
+        }
 
-      let tipPart = "$no tip";
-      const tipCeiled = dollarCeil(j.tip);
-      if (tipCeiled > 0) tipPart = `$${moneyPlain(tipCeiled)}${tipLabel(j.tipMethod)} tip`;
+        const extraCeiled = dollarCeil(j.extra);
+        const extraPart = extraCeiled > 0 ? ` (${moneyPlain(extraCeiled)} extra)` : "";
 
-      const depCeiled = dollarCeil(j.deposit);
-      const depPart = depCeiled > 0 ? ` (${moneyPlain(depCeiled)} deposit)` : "";
+        lines.push(`${idx + 1}.$${amt} ${pay}. ${tipPart}${extraPart}`);
 
-      const extraCeiled = dollarCeil(j.extra);
-      const extraPart = extraCeiled > 0 ? ` (${moneyPlain(extraCeiled)} extra)` : "";
-
-      // Example: 1.$145Zelle.$no tip (50 deposit)
-      lines.push(`${idx + 1}.$${amt}${pay}.$${tipPart.replace(/^\$/, "")}${depPart}${extraPart}`);
+        const depCeiled = dollarCeil(j.deposit);
+        if (depCeiled > 0) {
+          lines.push(`($${moneyPlain(depCeiled)} deposit)`);
+        }
+      }
+      lines.push("");
     });
 
     lines.push("");
-    lines.push(`Logistics & Mobilization Fee: ${moneyPlain(state.logistics.miles)} / ${moneyPlain(state.logistics.mpg)} * ${moneyPlain(state.logistics.gasPrice)}=$${moneyPlain(logisticsFee)}`);
-    lines.push(`Pass-Through Toll expense: $${tollExpr}=${moneyPlain(tollsSum)}`);
-    lines.push(`On-Site Access/Parking surcharge: $${parkingExpr}=${moneyPlain(parkingSum)}`);
-    lines.push(`Vehicle usage/Logistics flat fee: $${moneyPlain(state.logistics.flat)}`);
+
+    // Logistics section
+    lines.push(`Logistics & Mobilization Fee: ${moneyPlain(state.logistics.miles)}/ ${moneyPlain(state.logistics.mpg)} * ${moneyPlain(state.logistics.gasPrice)}=${moneyPlain(logisticsFee)}`);
+    lines.push(`Pass-Through Toll expense: `);
+    lines.push(`$${moneyPlain(tollsSum)}`);
+    lines.push(`On-Site Access/Parking surcharge: $${moneyPlain(parkingSum)}`);
+    lines.push(`Vehicle usage/Logistics flat fee: `);
+    lines.push(`$${moneyPlain(state.logistics.flat)}`);
+    lines.push(`Lead Referral & Platform Access Fee: $${moneyPlain(leadFee)}`);
     lines.push("");
 
-    lines.push(`Extra total: ${breakdownCeiledLine(extraArr)}`);
-    lines.push(`Company side extra (50%): $${moneyPlain(companyExtra)}`);
-    lines.push(`Contractor side extra (50%): $${moneyPlain(contractorExtra)}`);
+    // Extra (only when non-zero)
+    if (extraTotal > 0) {
+      lines.push(`Extra total: ${breakdownCeiledLine(extraArr)}`);
+      lines.push(`Company side extra (50%): $${moneyPlain(companyExtra)}`);
+      lines.push(`Contractor side extra (50%): $${moneyPlain(contractorExtra)}`);
+      lines.push("");
+    }
+
+    // Cash / Zelle / Card
+    if (cashAmounts.length > 0) {
+      lines.push(`Cash: ${cashAmounts.map(moneyPlain).join(' + ')} = ${moneyPlain(cashSum)}`);
+    } else {
+      lines.push(`Cash: `);
+    }
+    if (zelleAmounts.length > 0) {
+      lines.push(`Zelle:${zelleAmounts.map(moneyPlain).join(' + ')} =${moneyPlain(zelleSum)} `);
+    } else {
+      lines.push(`Zelle: `);
+    }
+    if (cardAmounts.length > 0) {
+      lines.push(`Card: ${cardAmounts.map(moneyPlain).join(' + ')} = ${moneyPlain(cardSum)}`);
+    } else {
+      lines.push(`Card: `);
+    }
     lines.push("");
 
-    lines.push(`Cash:${breakdownLine(cashAmounts)}`);
-    lines.push(`Zelle:${breakdownLine(zelleAmounts)}`);
-    lines.push(`Card:${breakdownLine(cardAmounts)}`);
-    lines.push("");
-
+    // Tips
     lines.push(`Tips cash:$${moneyPlain(cashTipsSum)}`);
     lines.push(`Tips Zelle:$${moneyPlain(zelleTipsSum)}`);
     lines.push(`Tips Card:$${moneyPlain(cardTipsSum)}`);
     lines.push("");
 
-    lines.push(`Deposit:${breakdownCeiledLine(depositArr)}`);
+    // Deposit
+    const depNonZero = depositArr.filter(d => d > 0);
+    if (depNonZero.length > 0) {
+      lines.push(`Deposit:$${depNonZero.map(moneyPlain).join('+')}=$${moneyPlain(depositsSum)} `);
+    } else {
+      lines.push(`Deposit:$0`);
+    }
     lines.push("");
 
-    // Grand total collected (for transparency)
-    lines.push(
-      `Grand Total Collected: ` +
-      `${moneyPlain(cashSum)}+${moneyPlain(zelleSum)}+${moneyPlain(cardSum)}+` +
-      `${moneyPlain(companyExtra)}+` +
-      `${moneyPlain(depositsSum)} =$${moneyPlain(grandTotalCollected)}`
-    )
+    // Grand Total Collected
+    const gtParts = [];
+    if (depositsSum > 0) gtParts.push(moneyPlain(depositsSum));
+    if (cashSum > 0) gtParts.push(moneyPlain(cashSum));
+    if (zelleSum > 0) gtParts.push(moneyPlain(zelleSum));
+    if (cardSum > 0) gtParts.push(moneyPlain(cardSum));
+    if (companyExtra > 0) gtParts.push(moneyPlain(companyExtra));
+    lines.push(`Grand Total Collected: `);
+    lines.push(`${gtParts.join('+')}=${formatComma(grandTotalCollected)} `);
     lines.push("");
 
-    const baseParts = [
-      moneyPlain(logisticsFee),
-      moneyPlain(tollsSum),
-      moneyPlain(parkingSum),
-      moneyPlain(state.logistics.flat)
-    ];
-    const baseExpr = `(${baseParts.join("+")})`;
-
-    const addParts = [];
-    if (nonCashTips > 0) addParts.push(moneyPlain(nonCashTips));
-    if (contractorExtra > 0) addParts.push(moneyPlain(contractorExtra));
-
-    const addExpr = addParts.length ? ` + ${addParts.join(" + ")}` : "";
-    lines.push(`Total due to contractor: ${baseExpr}${addExpr} =${moneyPlain(due)}`);
+    // Total due to contractor (multi-line)
+    lines.push(`Total due to contractor: `);
+    const dueParts = [];
+    if (logisticsFee > 0) dueParts.push(`${moneyPlain(logisticsFee)} logistics and mobilization +`);
+    if (tollsSum > 0) dueParts.push(`${moneyPlain(tollsSum)} tolls +`);
+    if (parkingSum > 0) dueParts.push(`${moneyPlain(parkingSum)} parking +`);
+    if (round2(state.logistics.flat) > 0) dueParts.push(`${moneyPlain(state.logistics.flat)} logistic flat fee +`);
+    if (leadFee > 0) dueParts.push(`${moneyPlain(leadFee)} lead referral +`);
+    if (nonCashTips > 0) dueParts.push(`${moneyPlain(nonCashTips)} non-cash tips +`);
+    if (contractorExtra > 0) dueParts.push(`${moneyPlain(contractorExtra)} contractor extra +`);
+    dueParts.forEach(p => lines.push(p));
+    lines.push(`=$${moneyPlain(due)}`);
 
     $("reportText").value = lines.join("\n");
     save();
@@ -724,7 +779,7 @@
   function wire() {
     $("lang").addEventListener("change", () => { setLang($("lang").value); recalc(); });
 
-    ["date","dayIndex","dayTotal","miles","mpg","gasPrice","flat"]
+    ["date","dayIndex","dayTotal","miles","mpg","gasPrice","flat","leadFee"]
       .forEach(id => {
         $(id).addEventListener("input", recalc);
         $(id).addEventListener("change", recalc);
@@ -743,6 +798,7 @@
       state.tolls = [];
       state.parkingItems = [];
       state.logistics = { miles: 0, mpg: 26, gasPrice: 3, flat: 10 };
+      state.leadFee = 0;
       state.dayIndex = 1;
       state.dayTotal = 3;
 
@@ -750,6 +806,7 @@
       $("mpg").value = 26;
       $("gasPrice").value = 3;
       $("flat").value = 10;
+      $("leadFee").value = 0;
       $("dayIndex").value = 1;
       $("dayTotal").value = 3;
 
@@ -842,6 +899,7 @@
   $("mpg").value = state.logistics?.mpg ?? 26;
   $("gasPrice").value = state.logistics?.gasPrice ?? 3;
   $("flat").value = state.logistics?.flat ?? 10;
+  $("leadFee").value = state.leadFee ?? 0;
 
   renderJobs();
   renderTolls();
